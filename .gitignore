@@ -1,0 +1,19 @@
+ # Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+*.egg-info/
+
+# Data files (too large for GitHub)
+data/raw/*.xlsx
+data/raw/*.zip
+*.csv
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
