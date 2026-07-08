@@ -12,17 +12,18 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, model_validator
+import sys
+import os
+
+# Add the root directory to path so it can find the 'backend' folder
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # ==================================================
 # FIREBASE SERVICE IMPORTS
 # ==================================================
 # Assuming firebase_service.py exists in the services directory
 # with the requested operational methods.
-<<<<<<< HEAD
 from backend.services.firebase_service import *
-=======
-from services.firebase_service import *
->>>>>>> 7aaffb768011c2e603b4ff9e1cf3ea1b6e22f556
 
 # ==================================================
 # LOGGING CONFIGURATION
@@ -391,8 +392,8 @@ async def api_delete_phc_record(record_id: str):
         return generate_response("success", f"PHC record {record_id} deleted successfully")
     except Exception as e:
         logger.error(f"Error deleting PHC record {record_id}: {str(e)}")
-<<<<<<< HEAD
+
         raise HTTPException(status_code=500, detail=str(e))
-=======
+
         raise HTTPException(status_code=500, detail=str(e))
->>>>>>> 7aaffb768011c2e603b4ff9e1cf3ea1b6e22f556
+

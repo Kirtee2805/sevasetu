@@ -41,3 +41,5 @@ Thumbs.db
 
 # Keep processed folder
 !data/processed/.gitkeep
+
+.streamlit/secrets.toml

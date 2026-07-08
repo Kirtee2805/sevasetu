@@ -4,10 +4,16 @@ AI Powered Public Healthcare Supply Chain Intelligence Dashboard.
 
 Premium Streamlit dashboard modularized into components and pages.
 """
+import firebase_admin
+
+from friebase_admin import credentials
+from firebase_admin import auth
+
+cred = credentials.certificate('firebase_credential.json')
+firebase_admin.initialize_app(cred)
 
 from __future__ import annotations
 
-import requests
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -16,21 +22,16 @@ from pathlib import Path
 from datetime import datetime
 import random
 import time
-import streamlit as st
-import pandas as pd
-import requests
-import sys
-import os
 
-# Ensure root is in path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-# Import globally
-from services.firebase_service import db  # Import specific objects instead of *
-# ... other imports ...
-
-# If running locally, use 127.0.0.1. If in Cloud Run, use the real backend URL.
-API_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
+# --- DATA FETCHING (ADD THIS AFTER IMPORTS) ---
+@st.cache_data(ttl=60)
+def get_dashboard_data():
+    try:
+        # Replace with your actual API endpoint
+        response = requests.get(f"{API_URL}/api/dashboard")
+        return response.json().get("data", {}) if response.status_code == 200 else {}
+    except:
+        return {}
 
 # ==========================================
 # CONFIGURATION
@@ -44,49 +45,17 @@ st.set_page_config(
 )
 
 # ==========================================
-# GLOBAL FONT SIZE OVERRIDES (PURE PYTHON)
+# LOAD CSS
 # ==========================================
 
-# 1. Force larger fonts for standard Streamlit text and your KPI cards
-st.markdown("""
-    <style>
-    /* Increase Base App Font Size */
-    html, body, [class*="css"], [data-testid="stSidebar"], [data-testid="stDataFrame"] {
-        font-size: 18px !important;
-    }
-    
-    /* Increase KPI Card Font Sizes */
-    .metric-card {
-        padding: 15px;
-        border-radius: 8px;
-        background-color: #ffffff;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .metric-title {
-        font-size: 20px !important; 
-        font-weight: 600;
-        color: #4B5563;
-    }
-    .metric-value {
-        font-size: 38px !important; 
-        font-weight: 700;
-        color: #111827;
-        margin: 8px 0;
-    }
-    .metric-sub {
-        font-size: 18px !important; 
-        font-weight: 500;
-    }
-    </style>
-""", unsafe_allow_html=True)
+css_file = Path(__file__).parent / "assets" / "style.css"
 
-# 2. Force larger fonts for ALL Plotly charts automatically
-import plotly.io as pio
-pio.templates["large_fonts"] = go.layout.Template(
-    layout=dict(font=dict(size=16)) # Adjust this number if you want chart text even bigger
-)
-# This merges your existing "plotly_white" theme with the new larger fonts
-pio.templates.default = "plotly_white+large_fonts"
+if css_file.exists():
+    st.markdown(
+        f"<style>{css_file.read_text()}</style>",
+        unsafe_allow_html=True
+    )
+
 # ==========================================
 # SAMPLE DATA
 # Replace later using FastAPI
@@ -97,32 +66,15 @@ districts = [
     "Vadodara", "Bhavnagar", "Jamnagar"
 ]
 
-# ==========================================
-# FETCH LIVE DATA FROM FASTAPI
-# ==========================================
-try:
-    # Ask the backend for the latest dashboard numbers
-    response = requests.get(f"{API_URL}/api/dashboard")
-    
-    if response.status_code == 200:
-        live_data = response.json().get("data", {})
-        
-        summary = {
-            "patients": live_data.get("patients", 0),
-            "stock_alerts": live_data.get("stock_alerts", 0),
-            "trust": live_data.get("trust", 0),
-            "outbreaks": live_data.get("outbreaks", 0),
-            "beds": live_data.get("beds", 0),
-            "doctors": live_data.get("doctors", 0)
-        }
-    else:
-        # Empty fallback if the server returns an error
-        summary = {"patients":0, "stock_alerts":0, "trust":0, "outbreaks":0, "beds":0, "doctors":0}
-        
-except Exception as e:
-    # Empty fallback if the FastAPI server is turned off
-    st.sidebar.error("⚠️ Backend Offline")
-    summary = {"patients":0, "stock_alerts":0, "trust":0, "outbreaks":0, "beds":0, "doctors":0}
+summary = {
+    "patients": 25431,
+    "stock_alerts": 43,
+    "critical": 11,
+    "trust": 92,
+    "beds": 87,
+    "doctors": 95,
+    "outbreaks": 2
+}
 
 # ==========================================
 # SIDEBAR
@@ -475,7 +427,7 @@ elif page == "💊 Medicine Alerts":
 
     st.success("✅ Medicine Intelligence Module Running Successfully")
 
- # ==========================================
+# ==========================================
 # 👥 PATIENT FOOTFALL PAGE
 # ==========================================
 
@@ -495,144 +447,143 @@ elif page == "👥 Patient Footfall":
 
     st.markdown("---")
 
-    # ======================================================
-    # FETCH LIVE DATA
-    # ======================================================
-    try:
-        response = requests.get(f"{API_URL}/api/phc")
-        if response.status_code == 200:
-            records = response.json().get("data", {})
-            
-            # If records is a dict, convert to list for pandas
-            if isinstance(records, dict):
-                records = list(records.values())
-            
-            if records:
-                live_df = pd.DataFrame(records)
-            else:
-                live_df = pd.DataFrame()
-        else:
-            live_df = pd.DataFrame()
-    except Exception as e:
-        st.sidebar.error("⚠️ Backend Offline")
-        live_df = pd.DataFrame()
-
-    # --- Metrics Calculation ---
-    if not live_df.empty:
-        today_total = live_df['patient_footfall'].sum()
-        avg_opd = int(live_df['patient_footfall'].mean())
-        # Simulate gender split if backend doesn't provide it yet
-        males = int(today_total * 0.45)
-        females = int(today_total * 0.45)
-        children = today_total - males - females
-        
-        # Aggregate by district for charts
-        district_totals = live_df.groupby('district')['patient_footfall'].sum().reset_index()
-    else:
-        # Fallbacks if DB is empty
-        today_total = 0
-        avg_opd = 0
-        males, females, children = 0, 0, 0
-        district_totals = pd.DataFrame({"district": [], "patient_footfall": []})
-
-    # ======================================================
-    # KPI CARDS
-    # ======================================================
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        card("Total Patients", f"{today_total:,}", "Live Count", "👥")
+        card("Today's Patients", "25,431", "+12%", "👥")
     with c2:
-        card("Monthly Patients", "6,78,245", "+6%", "📅") # Keeping historical placeholder for now
+        card("Monthly Patients", "6,78,245", "+6%", "📅")
     with c3:
-        card("Average OPD", str(avg_opd), "Per PHC", "🏥")
+        card("Average OPD", "312", "+18", "🏥")
     with c4:
-        card("Emergency", "54", "Active Cases", "🚑") # Keeping historical placeholder for now
+        card("Emergency", "54", "-4", "🚑")
 
     st.markdown("")
 
-    # ======================================================
-    # CHARTS
-    # ======================================================
     left, right = st.columns([2, 1])
     with left:
-        st.subheader("📍 Real-Time District Comparison")
-        if not district_totals.empty:
-            fig = px.bar(
-                district_totals, x="district", y="patient_footfall", 
-                color="patient_footfall", color_continuous_scale="Blues",
-                labels={"patient_footfall": "Total Patients", "district": "District"}
-            )
-            fig.update_layout(template="plotly_white", height=420, coloraxis_showscale=False)
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No data available yet. Please add records via the Data Entry page.")
+        trend = pd.DataFrame({
+            "Day": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+            "Patients": [350, 420, 480, 520, 560, 610, 590]
+        })
+        fig = px.area(trend, x="Day", y="Patients", markers=True, color_discrete_sequence=["#2563EB"])
+        fig.update_layout(template="plotly_white", height=420, title="Daily OPD Trend")
+        st.plotly_chart(fig, use_container_width=True)
 
     with right:
-        st.subheader("👥 Demographics")
-        if today_total > 0:
-            gender = pd.DataFrame({
-                "Category": ["Male", "Female", "Children"],
-                "Count": [males, females, children]
-            })
-            fig = px.pie(gender, names="Category", values="Count", hole=.55)
-            fig.update_layout(template="plotly_white", height=420)
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("Waiting for patient data...")
+        gender = pd.DataFrame({
+            "Category": ["Male", "Female", "Children"],
+            "Count": [11800, 11120, 2511]
+        })
+        fig = px.pie(gender, names="Category", values="Count", hole=.55)
+        fig.update_layout(template="plotly_white", height=420, title="Patient Distribution")
+        st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("---")
-
-    # ======================================================
-    # LIVE PATIENT RECORDS TABLE
-    # ======================================================
-    st.subheader("📋 Live Patient Records (From Firebase)")
-    if not live_df.empty:
-        # Select and rename columns for display
-        display_df = live_df[['phc_name', 'district', 'date', 'patient_footfall', 'doctor_present']].copy()
-        display_df.columns = ["PHC Name", "District", "Date", "Total Patients", "Doctors Present"]
-        
-        # Calculate a simple status based on patient load
-        display_df["Status"] = display_df["Total Patients"].apply(lambda x: "Busy" if x > 100 else "Normal")
-        
-        def highlight_status(val):
-            if val == "Busy":
-                return "background-color:#FEF3C7;color:#B45309;font-weight:bold"
-            return "background-color:#DCFCE7;color:#15803D;font-weight:bold"
-
-        st.dataframe(
-            display_df.style.map(highlight_status, subset=["Status"]),
-            use_container_width=True, hide_index=True
-        )
-    else:
-        st.warning("No live records found. The database is empty.")
+    st.subheader("📍 District Comparison")
+    
+    district_data = pd.DataFrame({
+        "District": ["Ahmedabad", "Rajkot", "Surat", "Vadodara", "Bhavnagar", "Jamnagar"],
+        "Patients": [5200, 4100, 4850, 3560, 2890, 2210]
+    })
+    fig = px.bar(district_data, x="District", y="Patients", color="Patients", color_continuous_scale="Blues")
+    fig.update_layout(template="plotly_white", height=430, coloraxis_showscale=False, title="District Wise OPD")
+    st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("---")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        hourly = pd.DataFrame({
+            "Hour": ["8 AM", "9 AM", "10 AM", "11 AM", "12 PM", "1 PM", "2 PM", "3 PM", "4 PM"],
+            "Patients": [22, 51, 78, 95, 110, 92, 71, 53, 34]
+        })
+        fig = px.line(hourly, x="Hour", y="Patients", markers=True)
+        fig.update_layout(template="plotly_white", height=380, title="Hourly Patient Footfall")
+        st.plotly_chart(fig, use_container_width=True)
 
-    # ======================================================
-    # AI INSIGHTS
-    # ======================================================
+    with col2:
+        age = pd.DataFrame({
+            "Age Group": ["0-18", "19-35", "36-50", "51-65", "65+"],
+            "Patients": [210, 520, 410, 285, 130]
+        })
+        fig = px.bar(age, x="Age Group", y="Patients", color="Patients", color_continuous_scale="Teal")
+        fig.update_layout(template="plotly_white", height=380, coloraxis_showscale=False, title="Age-wise Patients")
+        st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("---")
+    st.subheader("🦠 Disease Distribution")
+    
+    d1, d2 = st.columns([2, 1])
+    with d1:
+        disease_df = pd.DataFrame({
+            "Disease": ["Fever", "Diabetes", "Hypertension", "TB", "Asthma", "Others"],
+            "Patients": [520, 280, 240, 85, 120, 175]
+        })
+        fig = px.bar(disease_df, x="Disease", y="Patients", color="Patients", color_continuous_scale="Viridis")
+        fig.update_layout(template="plotly_white", height=420, coloraxis_showscale=False, title="Most Common Diseases")
+        st.plotly_chart(fig, use_container_width=True)
+
+    with d2:
+        disease_pie = px.pie(disease_df, names="Disease", values="Patients", hole=.55)
+        disease_pie.update_layout(template="plotly_white", height=420, title="Disease Share")
+        st.plotly_chart(disease_pie, use_container_width=True)
+
+    st.markdown("---")
+    st.subheader("🏥 PHC OPD Performance")
+    
+    opd_df = pd.DataFrame({
+        "PHC": ["PHC-01", "PHC-02", "PHC-03", "PHC-04", "PHC-05", "PHC-06"],
+        "OPD": [310, 425, 280, 395, 365, 450]
+    })
+    fig = px.bar(opd_df, x="PHC", y="OPD", color="OPD", color_continuous_scale="Blues")
+    fig.update_layout(template="plotly_white", height=420, title="Today's OPD Performance", coloraxis_showscale=False)
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("---")
+    st.subheader("📋 Live Patient Records")
+    
+    patient_df = pd.DataFrame({
+        "District": ["Rajkot", "Ahmedabad", "Surat", "Vadodara", "Bhavnagar", "Jamnagar"],
+        "Today's Patients": [421, 518, 478, 355, 240, 198],
+        "Emergency": [18, 26, 21, 14, 9, 6],
+        "Doctors": [14, 19, 17, 13, 10, 8],
+        "Average Wait": ["12 min", "16 min", "14 min", "10 min", "9 min", "7 min"],
+        "Status": ["Normal", "Busy", "Normal", "Busy", "Normal", "Normal"]
+    })
+
+    def highlight_status(val):
+        if val == "Busy":
+            return "background-color:#FEF3C7;color:#B45309;font-weight:bold"
+        return "background-color:#DCFCE7;color:#15803D;font-weight:bold"
+
+    st.dataframe(
+        patient_df.style.map(highlight_status, subset=["Status"]),
+        use_container_width=True, hide_index=True
+    )
+
+    st.markdown("---")
     st.subheader("🤖 AI Insights")
     
     i1, i2 = st.columns(2)
     with i1:
-        if not district_totals.empty:
-            highest_district = district_totals.loc[district_totals['patient_footfall'].idxmax()]['district']
-            lowest_district = district_totals.loc[district_totals['patient_footfall'].idxmin()]['district']
-        else:
-            highest_district = "N/A"
-            lowest_district = "N/A"
-            
-        st.success(f"### 📈 Patient Load\n• Total Live OPD: **{today_total}**\n• Highest footfall: **{highest_district}**\n• Lowest footfall: **{lowest_district}**")
+        st.success("### 📈 Patient Growth\n• OPD increased **12%** today\n• Highest footfall: **Ahmedabad**\n• Lowest footfall: **Jamnagar**")
         st.info("### 🧠 AI Prediction\nTomorrow's expected OPD\n**26,800 Patients**")
     with i2:
         st.warning("### ⚠ Capacity Alert\nRajkot PHC-02\nExpected overload\nbetween **10 AM - 1 PM**")
         st.success("### 💡 Recommendation\nDeploy **2 additional doctors**\nto Rajkot PHC-02")
 
     st.markdown("---")
-    st.success("✅ Patient Footfall Analytics Running Successfully with Live Firebase Data")
-    st.caption("Live data updates every 60 seconds • FastAPI • Firebase • AI Analytics")
+    d1, d2, d3 = st.columns(3)
+    with d1:
+        st.download_button("📥 Download CSV", patient_df.to_csv(index=False), "patient_footfall.csv", mime="text/csv", use_container_width=True)
+    with d2:
+        st.button("📄 Export PDF", use_container_width=True)
+    with d3:
+        st.button("📧 Share Report", use_container_width=True)
 
-# ==========================================
+    st.success("✅ Patient Footfall Analytics Running Successfully")
+    st.caption("Live data updates every 60 seconds • FastAPI • Firebase • AI Analytics")
+    # ==========================================
 # 👨‍⚕️ DOCTOR ATTENDANCE PAGE
 # ==========================================
 
@@ -1607,22 +1558,20 @@ elif page == "🏥 PHC Data Entry":
         
         submitted = st.form_submit_button("💾 Save Medicine Entry", use_container_width=True)
         if submitted:
-            from services.firebase_service import root
-            record_dict = {
-                "Date": str(entry_date),
-                "District": district,
-                "Block": block,
-                "PHC": phc,
-                "Medicine": medicine,
-                "Opening Stock": opening_stock,
-                "Received": received_stock,
-                "Consumed": consumed_stock,
-                "Damaged": damaged_stock,
-                "Current Stock": current_stock,
-                "Remarks": remarks
-            }
-            root.child("medicine_entries").push(record_dict)
-            st.session_state["medicine_entry"] = record_dict
+            medicine_record = pd.DataFrame({
+                "Date": [entry_date],
+                "District": [district],
+                "Block": [block],
+                "PHC": [phc],
+                "Medicine": [medicine],
+                "Opening Stock": [opening_stock],
+                "Received": [received_stock],
+                "Consumed": [consumed_stock],
+                "Damaged": [damaged_stock],
+                "Current Stock": [current_stock],
+                "Remarks": [remarks]
+            })
+            st.session_state["medicine_entry"] = medicine_record
             st.success("✅ Medicine stock saved successfully.")
 
     st.markdown("---")
@@ -1642,15 +1591,11 @@ elif page == "🏥 PHC Data Entry":
 
         opd_submit = st.form_submit_button("💾 Save OPD Entry", use_container_width=True)
         if opd_submit:
-            from services.firebase_service import root
-            record_dict = {
-                "Date": str(entry_date),
+            st.session_state["opd_data"] = {
                 "District": district, "Block": block, "PHC": phc,
                 "Male": male_patients, "Female": female_patients, "Children": child_patients,
                 "Emergency": emergency_patients, "Referred": referred_patients, "Total": total_patients
             }
-            root.child("opd_entries").push(record_dict)
-            st.session_state["opd_data"] = record_dict
             st.success("✅ OPD data saved successfully.")
 
     st.markdown("---")
@@ -1669,14 +1614,10 @@ elif page == "🏥 PHC Data Entry":
 
         doctor_submit = st.form_submit_button("💾 Save Attendance", use_container_width=True)
         if doctor_submit:
-            from services.firebase_service import root
-            record_dict = {
-                "Date": str(entry_date),
+            st.session_state["doctor_data"] = {
                 "District": district, "PHC": phc, "Present": present_doctors,
                 "Total": total_doctors, "Attendance": attendance
             }
-            root.child("doctor_attendance").push(record_dict)
-            st.session_state["doctor_data"] = record_dict
             st.success("✅ Doctor attendance saved successfully.")
 
     st.markdown("---")
@@ -1695,86 +1636,60 @@ elif page == "🏥 PHC Data Entry":
 
         bed_submit = st.form_submit_button("💾 Save Bed Status", use_container_width=True)
         if bed_submit:
-            from services.firebase_service import root
-            record_dict = {
-                "Date": str(entry_date),
+            st.session_state["bed_data"] = {
                 "District": district, "PHC": phc, "Occupied": occupied_beds,
                 "Available": available_beds, "Occupancy": occupancy
             }
-            root.child("bed_status").push(record_dict)
-            st.session_state["bed_data"] = record_dict
             st.success("✅ Bed status saved successfully.")
 
-    # ======================================================
-    # ✅ SUBMIT TO FASTAPI / FIREBASE
-    # ======================================================
-
-    st.subheader("✅ Validation & Submission")
-
+    st.markdown("---")
+    st.subheader("✅ Validation Status")
+    
     check1, check2, check3 = st.columns(3)
-
     with check1:
         if "medicine_entry" in st.session_state:
             st.success("✔ Medicine Data")
         else:
             st.error("✖ Medicine Missing")
-
     with check2:
         if "opd_data" in st.session_state:
             st.success("✔ OPD Data")
         else:
             st.error("✖ OPD Missing")
-
     with check3:
         if "doctor_data" in st.session_state and "bed_data" in st.session_state:
             st.success("✔ Attendance & Beds")
         else:
             st.error("✖ Incomplete Entry")
 
-    st.info("Fill all sections above before submitting data to the Live Database.")
+    elif page == "🏥 PHC Data Entry":
+    st.header("🏥 PHC Data Entry Portal")
+    
+    # ... (Your existing form code for medicine, OPD, etc.) ...
 
-    # --- NEW: SEND REAL DATA TO FASTAPI ---
-    if st.button("🚀 Submit Real-Time Data to Server", type="primary", use_container_width=True):
+    if st.button("🚀 Submit Real-Time Data to Server", type="primary"):
+        # This is where you send your data to FastAPI
+        payload = {
+            "district": district,
+            "phc_name": phc,
+            "patient_footfall": total_patients
+            # ... add other fields here
+        }
         
-        # Check if all forms have been filled out
-        if "medicine_entry" in st.session_state and "opd_data" in st.session_state and "doctor_data" in st.session_state and "bed_data" in st.session_state:
-            
-            # Gather all the real data the user just typed into the Streamlit forms
-            real_data_payload = {
-                "district": st.session_state["opd_data"]["District"],
-                "taluka": st.session_state["opd_data"]["Block"],
-                "phc_name": st.session_state["opd_data"]["PHC"],
-                "date": str(entry_date),
-                "total_doctors": st.session_state["doctor_data"]["Total"],
-                "doctor_present": st.session_state["doctor_data"]["Present"],
-                "bed_capacity": st.session_state["bed_data"]["Occupied"] + st.session_state["bed_data"]["Available"],
-                "occupied_beds": st.session_state["bed_data"]["Occupied"],
-                "patient_footfall": st.session_state["opd_data"]["Total"],
-                "medicine_name": str(st.session_state["medicine_entry"]["Medicine"].iloc[0]),
-                "medicine_stock": int(st.session_state["medicine_entry"]["Current Stock"].iloc[0]),
-                "disease_cases": 0, 
-                "vaccination_count": 0,
-                "submitted_by": "District Officer"
-            }
-
-            try:
-                # Send the real data to your FastAPI backend
-                response = requests.post(f"{API_URL}/api/phc", json=real_data_payload)
+        try:
+            response = requests.post(f"{API_URL}/api/phc", json=payload)
+            if response.status_code == 201:
+                st.success("✅ Data saved successfully!")
                 
-                if response.status_code == 201:
-                    st.success("✅ Real-time data successfully saved to Firebase!")
-                    st.balloons()
-                    
-                    # Clear the forms for the next entry
-                    for key in ["medicine_entry", "opd_data", "doctor_data", "bed_data"]:
-                        del st.session_state[key]
-                else:
-                    st.error(f"❌ Server Error: {response.text}")
-                    
-            except Exception as e:
-                st.error(f"❌ Could not connect to backend. Is FastAPI running? Error: {e}")
-        else:
-            st.warning("⚠️ Please click 'Save' on all four forms (Medicine, OPD, Doctors, Beds) before submitting.")
+                # THIS IS THE KEY TO REAL-TIME UPDATES:
+                # It forces the dashboard to re-fetch the new data
+                st.cache_data.clear() 
+            else:
+                st.error("❌ Failed to save data.")
+        except Exception as e:
+            st.error(f"Error connecting to backend: {e}")
+
+    st.info("Fill all sections before submitting data to the AI Pipeline.")
 
 # ==========================================
 # ⚙️ PIPELINE STATUS PAGE
