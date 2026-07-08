@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field, model_validator
 # ==================================================
 # Assuming firebase_service.py exists in the services directory
 # with the requested operational methods.
-from services.firebase_service import *
+from backend.services.firebase_service import *
 
 # ==================================================
 # LOGGING CONFIGURATION
