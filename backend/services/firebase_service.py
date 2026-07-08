@@ -4,7 +4,9 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 if not firebase_admin._apps:
-    service_account = json.loads(st.secrets["FIREBASE_SERVICE_ACCOUNT"])
+    service_account = json.loads(
+        st.secrets["FIREBASE_SERVICE_ACCOUNT"]
+    )
 
     cred = credentials.Certificate(service_account)
 

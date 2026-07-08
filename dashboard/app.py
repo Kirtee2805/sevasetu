@@ -6,6 +6,12 @@ Premium Streamlit dashboard modularized into components and pages.
 """
 from __future__ import annotations
 
+from pathlib import Path
+import sys
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
 import os
 import requests
 from backend.services.firebase_service import root
