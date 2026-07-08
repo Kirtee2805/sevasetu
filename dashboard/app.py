@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 import requests
-from services.firebase_service import root
+from backend.services.firebase_service import root
 
 
 import streamlit as st
