@@ -22,15 +22,11 @@ import requests
 import sys
 import os
 
-# Get the path to the root 'sevasetu' directory
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Ensure root is in path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Add the 'backend' folder to the path
-backend_dir = os.path.join(root_dir, 'backend')
-sys.path.append(backend_dir)
-
-# Now it can find the 'services' package inside 'backend'
-from services.firebase_service import *
+# Import globally
+from services.firebase_service import db  # Import specific objects instead of *
 # ... other imports ...
 
 # If running locally, use 127.0.0.1. If in Cloud Run, use the real backend URL.
