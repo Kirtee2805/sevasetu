@@ -1600,20 +1600,22 @@ elif page == "🏥 PHC Data Entry":
         
         submitted = st.form_submit_button("💾 Save Medicine Entry", use_container_width=True)
         if submitted:
-            medicine_record = pd.DataFrame({
-                "Date": [entry_date],
-                "District": [district],
-                "Block": [block],
-                "PHC": [phc],
-                "Medicine": [medicine],
-                "Opening Stock": [opening_stock],
-                "Received": [received_stock],
-                "Consumed": [consumed_stock],
-                "Damaged": [damaged_stock],
-                "Current Stock": [current_stock],
-                "Remarks": [remarks]
-            })
-            st.session_state["medicine_entry"] = medicine_record
+            from services.firebase_service import root
+            record_dict = {
+                "Date": str(entry_date),
+                "District": district,
+                "Block": block,
+                "PHC": phc,
+                "Medicine": medicine,
+                "Opening Stock": opening_stock,
+                "Received": received_stock,
+                "Consumed": consumed_stock,
+                "Damaged": damaged_stock,
+                "Current Stock": current_stock,
+                "Remarks": remarks
+            }
+            root.child("medicine_entries").push(record_dict)
+            st.session_state["medicine_entry"] = record_dict
             st.success("✅ Medicine stock saved successfully.")
 
     st.markdown("---")
@@ -1633,11 +1635,15 @@ elif page == "🏥 PHC Data Entry":
 
         opd_submit = st.form_submit_button("💾 Save OPD Entry", use_container_width=True)
         if opd_submit:
-            st.session_state["opd_data"] = {
+            from services.firebase_service import root
+            record_dict = {
+                "Date": str(entry_date),
                 "District": district, "Block": block, "PHC": phc,
                 "Male": male_patients, "Female": female_patients, "Children": child_patients,
                 "Emergency": emergency_patients, "Referred": referred_patients, "Total": total_patients
             }
+            root.child("opd_entries").push(record_dict)
+            st.session_state["opd_data"] = record_dict
             st.success("✅ OPD data saved successfully.")
 
     st.markdown("---")
@@ -1656,10 +1662,14 @@ elif page == "🏥 PHC Data Entry":
 
         doctor_submit = st.form_submit_button("💾 Save Attendance", use_container_width=True)
         if doctor_submit:
-            st.session_state["doctor_data"] = {
+            from services.firebase_service import root
+            record_dict = {
+                "Date": str(entry_date),
                 "District": district, "PHC": phc, "Present": present_doctors,
                 "Total": total_doctors, "Attendance": attendance
             }
+            root.child("doctor_attendance").push(record_dict)
+            st.session_state["doctor_data"] = record_dict
             st.success("✅ Doctor attendance saved successfully.")
 
     st.markdown("---")
@@ -1678,10 +1688,14 @@ elif page == "🏥 PHC Data Entry":
 
         bed_submit = st.form_submit_button("💾 Save Bed Status", use_container_width=True)
         if bed_submit:
-            st.session_state["bed_data"] = {
+            from services.firebase_service import root
+            record_dict = {
+                "Date": str(entry_date),
                 "District": district, "PHC": phc, "Occupied": occupied_beds,
                 "Available": available_beds, "Occupancy": occupancy
             }
+            root.child("bed_status").push(record_dict)
+            st.session_state["bed_data"] = record_dict
             st.success("✅ Bed status saved successfully.")
 
     # ======================================================
