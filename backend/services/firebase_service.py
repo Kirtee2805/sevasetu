@@ -1,21 +1,18 @@
-import os
 import json
+import streamlit as st
 import firebase_admin
-from firebase_admin import credentials, db # Make sure to import 'db' here
+from firebase_admin import credentials, db
 
-# Fetch the JSON string from the environment variable
-service_account_json = os.environ.get("FIREBASE_SERVICE_ACCOUNT")
+if not firebase_admin._apps:
+    service_account = json.loads(st.secrets["FIREBASE_SERVICE_ACCOUNT"])
 
-if service_account_json and not firebase_admin._apps:
-    try:
-        cred_dict = json.loads(service_account_json)
-        cred = credentials.Certificate(cred_dict)
-        
-        # Initialize the app with the database URL
-        firebase_admin.initialize_app(cred, {
-            'databaseURL': 'https://sevasetu-70378-default-rtdb.firebaseio.com/'
-        })
-    except Exception as e:
-        print(f"Error initializing Firebase: {e}")
+    cred = credentials.Certificate(service_account)
 
-# 'db' is now initialized and ready to be used by app.py
+    firebase_admin.initialize_app(
+        cred,
+        {
+            "databaseURL": st.secrets["FIREBASE_DATABASE_URL"]
+        }
+    )
+
+root = db.reference("/")
