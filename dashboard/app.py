@@ -22,10 +22,14 @@ import requests
 import sys
 import os
 
-# This adds the root of your repo to Python's search path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Get the path to the root 'sevasetu' directory
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Now this should work
+# Add the 'backend' folder to the path
+backend_dir = os.path.join(root_dir, 'backend')
+sys.path.append(backend_dir)
+
+# Now it can find the 'services' package inside 'backend'
 from services.firebase_service import *
 # ... other imports ...
 
