@@ -1,4 +1,5 @@
-fastapi
-uvicorn
 firebase-admin
-pydantic
+pandas
+streamlit
+requests
+plotly
