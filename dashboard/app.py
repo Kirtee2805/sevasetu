@@ -32,7 +32,9 @@ def get_dashboard_data():
         return response.json().get("data", {}) if response.status_code == 200 else {}
     except:
         return {}
-
+# This tells the app to use the BACKEND_URL from Secrets, 
+# or default to localhost if it's not found.
+API_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
 # ==========================================
 # CONFIGURATION
 # ==========================================
@@ -1661,8 +1663,7 @@ elif page == "🏥 PHC Data Entry":
             st.success("✔ Attendance & Beds")
         else:
             st.error("✖ Incomplete Entry")
-
-    elif page == "🏥 PHC Data Entry":
+elif page == "🏥 PHC Data Entry":
     st.header("🏥 PHC Data Entry Portal")
     
     # ... (Your existing form code for medicine, OPD, etc.) ...
