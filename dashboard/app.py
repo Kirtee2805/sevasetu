@@ -19,11 +19,19 @@ import time
 import streamlit as st
 import pandas as pd
 import requests
+iimport sys
 import os
-import sys
 
-# Add the current directory (the root of your repo) to the Python path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Get the directory where app.py lives
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# Get the parent directory (the root)
+parent_dir = os.path.dirname(current_dir)
+
+# Add the root directory to the path so it can find the 'services' folder
+sys.path.append(parent_dir)
+
+# Now it will find 'services' at the root
+from services.firebase_service import *
 
 # Now your imports will work
 from services.firebase_service import *
