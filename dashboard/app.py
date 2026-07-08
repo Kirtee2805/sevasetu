@@ -19,7 +19,7 @@ import time
 import streamlit as st
 import pandas as pd
 import requests
-iimport sys
+import sys
 import os
 
 # Get the directory where app.py lives
