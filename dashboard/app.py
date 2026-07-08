@@ -4,6 +4,7 @@ AI Powered Public Healthcare Supply Chain Intelligence Dashboard.
 
 Premium Streamlit dashboard modularized into components and pages.
 """
+from __future__ import annotations
 import firebase_admin
 
 from friebase_admin import credentials
@@ -12,7 +13,7 @@ from firebase_admin import auth
 cred = credentials.certificate('firebase_credential.json')
 firebase_admin.initialize_app(cred)
 
-from __future__ import annotations
+
 
 import streamlit as st
 import pandas as pd
