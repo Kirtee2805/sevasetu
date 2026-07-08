@@ -20,6 +20,13 @@ import streamlit as st
 import pandas as pd
 import requests
 import os
+import sys
+
+# Add the current directory (the root of your repo) to the Python path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Now your imports will work
+from services.firebase_service import *
 # ... other imports ...
 
 # If running locally, use 127.0.0.1. If in Cloud Run, use the real backend URL.
