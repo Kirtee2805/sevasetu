@@ -5,13 +5,21 @@ AI Powered Public Healthcare Supply Chain Intelligence Dashboard.
 Premium Streamlit dashboard modularized into components and pages.
 """
 from __future__ import annotations
+
+import os
+import requests
 import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import db
 
-from friebase_admin import credentials
-from firebase_admin import auth
+if not firebase_admin._apps:
+    cred = credentials.Certificate("firebase_credential.json")
 
-cred = credentials.certificate('firebase_credential.json')
-firebase_admin.initialize_app(cred)
+    firebase_admin.initialize_app(cred, {
+        "databaseURL": "https://sevasetu-70378-default-rtdb.firebaseio.com"
+    })
+
+root = db.reference("/")
 
 
 
