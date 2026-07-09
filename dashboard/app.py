@@ -192,10 +192,17 @@ if page == "🏠 Overview":
     # Add a dropdown filter and refresh button side-by-side
     filter_col, refresh_col = st.columns([3, 1])
     
-    with filter_col:
+   with filter_col:
+        phc_list = ["All", "PHC-01", "PHC-02", "PHC-03", "PHC-04", "PHC-05"]
+        
+        # Check karo ke Data Entry mathi koi PHC aavyu chhe ke nahi
+        default_phc = st.session_state.get("last_active_phc", "All")
+        default_index = phc_list.index(default_phc) if default_phc in phc_list else 0
+        
         selected_phc = st.selectbox(
             "🏥 Select PHC to view specific data", 
-            ["All", "PHC-01", "PHC-02", "PHC-03", "PHC-04", "PHC-05"]
+            phc_list,
+            index=default_index # Aa automatic j e PHC set kari deshe!
         )
         
     with refresh_col:
@@ -1649,7 +1656,10 @@ elif page == "🏥 PHC Data Entry":
                 "timestamp": datetime.now().isoformat()
             }
             root.child("opd_entries").push(record)
-            st.session_state["opd_data"] = record
+            
+            # Aa line add karo jethi system yaad rakhe ke tame kaya PHC ma entry kari!
+            st.session_state["last_active_phc"] = phc 
+            
             st.success("✅ OPD data saved to Firebase!")
             st.cache_data.clear()
             st.rerun() #
