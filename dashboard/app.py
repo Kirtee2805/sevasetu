@@ -72,35 +72,38 @@ districts = [
 ]
 
 # Removed @st.cache_data so it ALWAYS fetches fresh real-time data!
-def get_firebase_summary():
+def get_firebase_summary(phc_filter="All"):
     try:
         opd = root.child("opd_entries").get() or {}
         beds = root.child("bed_entries").get() or {}
         
-        # Add new live entries to the base dummy values (25431)
-        base_patients = 25431
+        # Filter the Firebase dictionaries if a specific PHC is selected
+        if phc_filter != "All":
+            opd = {k: v for k, v in opd.items() if isinstance(v, dict) and v.get("phc") == phc_filter}
+            beds = {k: v for k, v in beds.items() if isinstance(v, dict) and v.get("phc") == phc_filter}
+        
+        # Base dummy values for "All" vs Specific PHC
+        base_patients = 25431 if phc_filter == "All" else 0
         new_patients = sum(v.get("total", 0) for v in opd.values()) if isinstance(opd, dict) else 0
         
-        # For beds, if you entered new data, show that, otherwise show 87
         new_beds = sum(v.get("Available", 0) for v in beds.values()) if isinstance(beds, dict) else 0
         
         return {
             "patients": base_patients + new_patients,
-            "stock_alerts": 43,
-            "critical": 11,
-            "trust": 92,
-            "beds": new_beds if new_beds > 0 else 87,
-            "doctors": 95,
-            "outbreaks": 2
+            "stock_alerts": 43 if phc_filter == "All" else 3,
+            "critical": 11 if phc_filter == "All" else 0,
+            "trust": 92 if phc_filter == "All" else 96,
+            "beds": new_beds if new_beds > 0 else (87 if phc_filter == "All" else 15),
+            "doctors": 95 if phc_filter == "All" else 4,
+            "outbreaks": 2 if phc_filter == "All" else 0
         }
     except Exception as e:
         return {
-            "patients": 25431, "stock_alerts": 43,
-            "critical": 11, "trust": 92,
-            "beds": 87, "doctors": 95, "outbreaks": 2
+            "patients": 0, "stock_alerts": 0, "critical": 0, 
+            "trust": 0, "beds": 0, "doctors": 0, "outbreaks": 0
         }
 
-summary = get_firebase_summary()
+    summary = get_firebase_summary()
 
 # ==========================================
 # SIDEBAR
@@ -159,8 +162,8 @@ with col3:
     st.metric("Updated", datetime.now().strftime("%H:%M"))
 
 with col4:
-    st.metric("District", "Rajkot")
-
+    # This will now display the dashboard level you are operating at
+    st.metric("Dashboard Level", "PHC Admin")
 st.divider()
 
 # ==========================================
@@ -186,10 +189,24 @@ def card(title, value, delta, emoji):
 if page == "🏠 Overview":
     st.header("Healthcare Overview")
     
-    if st.button("🔄 Refresh Data"):
-        st.cache_data.clear()
-        st.rerun()
+    # Add a dropdown filter and refresh button side-by-side
+    filter_col, refresh_col = st.columns([3, 1])
     
+    with filter_col:
+        selected_phc = st.selectbox(
+            "🏥 Select PHC to view specific data", 
+            ["All", "PHC-01", "PHC-02", "PHC-03", "PHC-04", "PHC-05"]
+        )
+        
+    with refresh_col:
+        st.markdown("<br>", unsafe_allow_html=True) # Aligns button with the selectbox
+        if st.button("🔄 Refresh Data", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+
+    # Fetch data based on the dropdown selection
+    summary = get_firebase_summary(selected_phc)
+
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         card("Today's Patients", summary["patients"], "+12%", "👥")
