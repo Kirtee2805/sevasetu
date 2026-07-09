@@ -71,26 +71,29 @@ districts = [
     "Vadodara", "Bhavnagar", "Jamnagar"
 ]
 
-@st.cache_data(ttl=30)
+# Removed @st.cache_data so it ALWAYS fetches fresh real-time data!
 def get_firebase_summary():
     try:
         opd = root.child("opd_entries").get() or {}
         beds = root.child("bed_entries").get() or {}
-        doctors = root.child("doctor_entries").get() or {}
         
-        total_patients = sum(v.get("total", 0) for v in opd.values()) if opd else 25431
-        total_beds = sum(v.get("Available", 0) for v in beds.values()) if beds else 87
+        # Add new live entries to the base dummy values (25431)
+        base_patients = 25431
+        new_patients = sum(v.get("total", 0) for v in opd.values()) if isinstance(opd, dict) else 0
+        
+        # For beds, if you entered new data, show that, otherwise show 87
+        new_beds = sum(v.get("Available", 0) for v in beds.values()) if isinstance(beds, dict) else 0
         
         return {
-            "patients": total_patients,
+            "patients": base_patients + new_patients,
             "stock_alerts": 43,
             "critical": 11,
             "trust": 92,
-            "beds": total_beds,
+            "beds": new_beds if new_beds > 0 else 87,
             "doctors": 95,
             "outbreaks": 2
         }
-    except:
+    except Exception as e:
         return {
             "patients": 25431, "stock_alerts": 43,
             "critical": 11, "trust": 92,
@@ -1632,6 +1635,7 @@ elif page == "🏥 PHC Data Entry":
             st.session_state["opd_data"] = record
             st.success("✅ OPD data saved to Firebase!")
             st.cache_data.clear()
+            st.rerun() #
 
     st.markdown("---")
     st.subheader("👨‍⚕️ Doctor Attendance")
