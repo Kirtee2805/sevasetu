@@ -71,15 +71,33 @@ districts = [
     "Vadodara", "Bhavnagar", "Jamnagar"
 ]
 
-summary = {
-    "patients": 25431,
-    "stock_alerts": 43,
-    "critical": 11,
-    "trust": 92,
-    "beds": 87,
-    "doctors": 95,
-    "outbreaks": 2
-}
+@st.cache_data(ttl=30)
+def get_firebase_summary():
+    try:
+        opd = root.child("opd_entries").get() or {}
+        beds = root.child("bed_entries").get() or {}
+        doctors = root.child("doctor_entries").get() or {}
+        
+        total_patients = sum(v.get("total", 0) for v in opd.values()) if opd else 25431
+        total_beds = sum(v.get("Available", 0) for v in beds.values()) if beds else 87
+        
+        return {
+            "patients": total_patients,
+            "stock_alerts": 43,
+            "critical": 11,
+            "trust": 92,
+            "beds": total_beds,
+            "doctors": 95,
+            "outbreaks": 2
+        }
+    except:
+        return {
+            "patients": 25431, "stock_alerts": 43,
+            "critical": 11, "trust": 92,
+            "beds": 87, "doctors": 95, "outbreaks": 2
+        }
+
+summary = get_firebase_summary()
 
 # ==========================================
 # SIDEBAR
@@ -164,6 +182,10 @@ def card(title, value, delta, emoji):
 
 if page == "🏠 Overview":
     st.header("Healthcare Overview")
+    
+    if st.button("🔄 Refresh Data"):
+        st.cache_data.clear()
+        st.rerun()
     
     c1, c2, c3, c4 = st.columns(4)
     with c1:
@@ -1563,21 +1585,24 @@ elif page == "🏥 PHC Data Entry":
         
         submitted = st.form_submit_button("💾 Save Medicine Entry", use_container_width=True)
         if submitted:
-            medicine_record = pd.DataFrame({
-                "Date": [entry_date],
-                "District": [district],
-                "Block": [block],
-                "PHC": [phc],
-                "Medicine": [medicine],
-                "Opening Stock": [opening_stock],
-                "Received": [received_stock],
-                "Consumed": [consumed_stock],
-                "Damaged": [damaged_stock],
-                "Current Stock": [current_stock],
-                "Remarks": [remarks]
-            })
-            st.session_state["medicine_entry"] = medicine_record
-            st.success("✅ Medicine stock saved successfully.")
+            record = {
+                "date": str(entry_date),
+                "district": district,
+                "block": block,
+                "phc": phc,
+                "medicine": medicine,
+                "opening_stock": opening_stock,
+                "received": received_stock,
+                "consumed": consumed_stock,
+                "damaged": damaged_stock,
+                "current_stock": current_stock,
+                "remarks": remarks,
+                "timestamp": datetime.now().isoformat()
+            }
+            root.child("medicine_entries").push(record)
+            st.session_state["medicine_entry"] = record
+            st.success("✅ Medicine stock saved to Firebase!")
+            st.cache_data.clear()
 
     st.markdown("---")
     st.subheader("🩺 OPD Patient Entry")
@@ -1596,12 +1621,17 @@ elif page == "🏥 PHC Data Entry":
 
         opd_submit = st.form_submit_button("💾 Save OPD Entry", use_container_width=True)
         if opd_submit:
-            st.session_state["opd_data"] = {
-                "District": district, "Block": block, "PHC": phc,
-                "Male": male_patients, "Female": female_patients, "Children": child_patients,
-                "Emergency": emergency_patients, "Referred": referred_patients, "Total": total_patients
+            record = {
+                "district": district, "phc": phc,
+                "male": male_patients, "female": female_patients,
+                "children": child_patients, "emergency": emergency_patients,
+                "total": total_patients,
+                "timestamp": datetime.now().isoformat()
             }
-            st.success("✅ OPD data saved successfully.")
+            root.child("opd_entries").push(record)
+            st.session_state["opd_data"] = record
+            st.success("✅ OPD data saved to Firebase!")
+            st.cache_data.clear()
 
     st.markdown("---")
     st.subheader("👨‍⚕️ Doctor Attendance")
@@ -1619,11 +1649,15 @@ elif page == "🏥 PHC Data Entry":
 
         doctor_submit = st.form_submit_button("💾 Save Attendance", use_container_width=True)
         if doctor_submit:
-            st.session_state["doctor_data"] = {
-                "District": district, "PHC": phc, "Present": present_doctors,
-                "Total": total_doctors, "Attendance": attendance
+            record = {
+                "district": district, "phc": phc, "present": present_doctors,
+                "total": total_doctors, "attendance": attendance,
+                "timestamp": datetime.now().isoformat()
             }
-            st.success("✅ Doctor attendance saved successfully.")
+            root.child("doctor_entries").push(record)
+            st.session_state["doctor_data"] = record
+            st.success("✅ Doctor attendance saved to Firebase!")
+            st.cache_data.clear()
 
     st.markdown("---")
     st.subheader("🛏 Bed Availability Entry")
@@ -1641,11 +1675,15 @@ elif page == "🏥 PHC Data Entry":
 
         bed_submit = st.form_submit_button("💾 Save Bed Status", use_container_width=True)
         if bed_submit:
-            st.session_state["bed_data"] = {
-                "District": district, "PHC": phc, "Occupied": occupied_beds,
-                "Available": available_beds, "Occupancy": occupancy
+            record = {
+                "district": district, "phc": phc, "occupied": occupied_beds,
+                "Available": available_beds, "occupancy": occupancy,
+                "timestamp": datetime.now().isoformat()
             }
-            st.success("✅ Bed status saved successfully.")
+            root.child("bed_entries").push(record)
+            st.session_state["bed_data"] = record
+            st.success("✅ Bed status saved to Firebase!")
+            st.cache_data.clear()
 
     st.markdown("---")
     st.subheader("✅ Validation Status")
